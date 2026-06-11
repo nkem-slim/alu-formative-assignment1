@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'core/constants/app_constants.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/data/auth_service.dart';
@@ -20,6 +21,15 @@ class _AppState extends State<App> {
   void initState() {
     super.initState();
     _authService.addListener(_rebuild);
+    _init();
+  }
+
+  Future<void> _init() async {
+    try {
+      await dotenv.load(fileName: '.env');
+    } catch (_) {
+      // .env missing — AuthService falls back to hardcoded defaults
+    }
     _authService.init();
   }
 

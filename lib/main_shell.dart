@@ -26,13 +26,14 @@ class _MainShellState extends State<MainShell> {
       HomeScreen(authService: widget.authService),
       const EventsScreen(),
       const MyEventsScreen(),
-      const AdminPage(),
+      if (widget.authService.isAdmin) const AdminPage(),
       ProfileScreen(authService: widget.authService),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
+    final isAdmin = widget.authService.isAdmin;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _screens[_currentIndex],
@@ -45,31 +46,32 @@ class _MainShellState extends State<MainShell> {
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 8,
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             selectedIcon: Icon(Icons.home, color: AppColors.primary),
             icon: Icon(Icons.home_outlined),
             label: 'Home',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             selectedIcon: Icon(Icons.calendar_month, color: AppColors.primary),
             icon: Icon(Icons.calendar_month_outlined),
             label: 'Events',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             selectedIcon: Icon(Icons.bookmark, color: AppColors.primary),
             icon: Icon(Icons.bookmark_outline),
             label: 'My Events',
           ),
-          NavigationDestination(
-            selectedIcon: Icon(
-              Icons.admin_panel_settings,
-              color: AppColors.primary,
+          if (isAdmin)
+            const NavigationDestination(
+              selectedIcon: Icon(
+                Icons.admin_panel_settings,
+                color: AppColors.primary,
+              ),
+              icon: Icon(Icons.admin_panel_settings_outlined),
+              label: 'Admin',
             ),
-            icon: Icon(Icons.admin_panel_settings),
-            label: 'Admin',
-          ),
-          NavigationDestination(
+          const NavigationDestination(
             selectedIcon: Icon(Icons.person, color: AppColors.primary),
             icon: Icon(Icons.person_outline),
             label: 'Profile',

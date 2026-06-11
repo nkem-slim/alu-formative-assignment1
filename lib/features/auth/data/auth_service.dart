@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models/user_model.dart';
 
@@ -8,12 +9,18 @@ class AuthService extends ChangeNotifier {
   static const _keyUsers = 'registered_users';
   static const _keyOnboarding = 'onboarding_seen';
 
+  static String get _adminEmail =>
+      dotenv.env['ADMIN_EMAIL'] ?? 'admin@gmail.com';
+  static String get _adminPassword =>
+      dotenv.env['ADMIN_PASSWORD'] ?? 'adminpassword123';
+
   UserModel? _currentUser;
   bool _onboardingSeen = false;
   bool _initialized = false;
 
   UserModel? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
+  bool get isAdmin => _currentUser?.email == _adminEmail;
   bool get onboardingSeen => _onboardingSeen;
   bool get initialized => _initialized;
 
@@ -37,6 +44,25 @@ class AuthService extends ChangeNotifier {
 
   Future<String?> login(String email, String password) async {
     await Future.delayed(const Duration(milliseconds: 600));
+
+    // Admin shortcut — bypasses the registered-users list
+    if (email.trim().toLowerCase() == _adminEmail &&
+        password == _adminPassword) {
+      _currentUser = UserModel(
+        id: 'admin',
+        name: 'Admin',
+        email: _adminEmail,
+        phone: '',
+        campus: 'All Campuses',
+        avatarInitials: 'AD',
+      );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          _keyCurrentUser, jsonEncode(_currentUser!.toJson()));
+      notifyListeners();
+      return null;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final users = _loadUsers(prefs);
 
