@@ -5,6 +5,7 @@ import 'features/home/presentation/screens/home_screen.dart';
 import 'features/events/presentation/screens/events_screen.dart';
 import 'features/my_events/presentation/screens/my_events_screen.dart';
 import 'features/profile/presentation/screens/profile_screen.dart';
+import 'features/home/presentation/screens/admin_page.dart';
 
 class MainShell extends StatefulWidget {
   final AuthService authService;
@@ -25,6 +26,7 @@ class _MainShellState extends State<MainShell> {
       HomeScreen(authService: widget.authService),
       const EventsScreen(),
       const MyEventsScreen(),
+      const AdminPage(),
       ProfileScreen(authService: widget.authService),
     ];
   }
@@ -58,6 +60,14 @@ class _MainShellState extends State<MainShell> {
             selectedIcon: Icon(Icons.bookmark, color: AppColors.primary),
             icon: Icon(Icons.bookmark_outline),
             label: 'My Events',
+          ),
+          NavigationDestination(
+            selectedIcon: Icon(
+              Icons.admin_panel_settings,
+              color: AppColors.primary,
+            ),
+            icon: Icon(Icons.admin_panel_settings),
+            label: 'Admin',
           ),
           NavigationDestination(
             selectedIcon: Icon(Icons.person, color: AppColors.primary),
