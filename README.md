@@ -1,4 +1,4 @@
-# alu_app
+# alu_formative_assignment1
 
 A new Flutter project.
 

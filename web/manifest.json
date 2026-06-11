@@ -1,6 +1,6 @@
 {
-    "name": "alu_app",
-    "short_name": "alu_app",
+    "name": "alu_formative_assignment1",
+    "short_name": "alu_formative_assignment1",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

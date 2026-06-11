@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.alu_app"
+    namespace = "com.alu.alu_formative_assignment1"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.alu_app"
+        applicationId = "com.alu.alu_formative_assignment1"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
