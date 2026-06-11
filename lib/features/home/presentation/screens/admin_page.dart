@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../auth/data/auth_service.dart';
-import '../../../auth/data/models/user_model.dart';
+import '../../../../core/constants/event_icons.dart';
+import '../../data/event_repository.dart';
 
 class AdminPage extends StatefulWidget {
   final AuthService authService;
@@ -19,77 +19,16 @@ class _AdminPageState extends State<AdminPage>
     with SingleTickerProviderStateMixin {
   static const _adminDecisionsKey = 'admin_event_decisions';
   late TabController _tabController;
-  final Map<int, String> _decisions = {};
-  List<UserModel> _registeredUsers = [];
-  bool _loadingUsers = true;
 
-  static const _pendingEvents = [
-    {
-      'title': 'Tech Startup Showcase',
-      'organizer': 'ALU Innovation Club',
-      'date': 'Jul 10 · 1:00 PM',
-      'location': 'Innovation Lab',
-      'type': 'On Campus',
-    },
-    {
-      'title': 'Photography Workshop',
-      'organizer': 'Creative Arts Society',
-      'date': 'Jul 15 · 10:00 AM',
-      'location': 'Room A2',
-      'type': 'Free',
-    },
-    {
-      'title': 'Debate Night: AI Ethics',
-      'organizer': 'Philosophy Circle',
-      'date': 'Jul 20 · 5:00 PM',
-      'location': 'Main Hall',
-      'type': 'Free',
-    },
-  ];
-
-  static const _users = [
-    {
-      'initials': 'AK',
-      'name': 'Amara Kone',
-      'email': 'a.kone@alustudent.com',
-      'campus': 'Kigali',
-    },
-    {
-      'initials': 'BM',
-      'name': 'Beatrice Mutesi',
-      'email': 'b.mutesi@alustudent.com',
-      'campus': 'Kigali',
-    },
-    {
-      'initials': 'CJ',
-      'name': 'Claude Jabari',
-      'email': 'c.jabari@alustudent.com',
-      'campus': 'Mauritius',
-    },
-    {
-      'initials': 'DS',
-      'name': 'David Sow',
-      'email': 'd.sow@alustudent.com',
-      'campus': 'Kigali',
-    },
-    {
-      'initials': 'EN',
-      'name': 'Emeka Nwosu',
-      'email': 'e.nwosu@alustudent.com',
-      'campus': 'Lagos',
-    },
-  ];
-
-  int get _pendingCount => _pendingEvents.length - _decisions.length;
-  int get _userCount =>
-      _registeredUsers.isEmpty ? _users.length : _registeredUsers.length;
+  List<Map<String, dynamic>> _pendingEvents = [];
+  List<Map<String, dynamic>> _users = [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadUsers();
-    _loadDecisions();
+    _load();
   }
 
   @override
@@ -98,41 +37,23 @@ class _AdminPageState extends State<AdminPage>
     super.dispose();
   }
 
-  Future<void> _loadUsers() async {
-    final users = await widget.authService.registeredUsers();
-    if (!mounted) return;
-    setState(() {
-      _registeredUsers = users;
-      _loadingUsers = false;
-    });
+  Future<void> _load() async {
+    final events = await EventRepository.getPendingEvents();
+    final users = await EventRepository.getRegisteredUsers();
+    if (mounted) {
+      setState(() {
+        _pendingEvents = events;
+        _users = users;
+        _loading = false;
+      });
+    }
   }
 
-  Future<void> _loadDecisions() async {
-    final prefs = await SharedPreferences.getInstance();
-    final encoded = prefs.getString(_adminDecisionsKey);
-    if (encoded == null) return;
-
-    final decoded = jsonDecode(encoded) as Map<String, dynamic>;
-    if (!mounted) return;
-    setState(() {
-      _decisions
-        ..clear()
-        ..addAll(
-          decoded.map(
-            (key, value) => MapEntry(int.parse(key), value as String),
-          ),
-        );
-    });
+  Future<void> _decide(String id, String decision) async {
+    await EventRepository.updateStatus(id, decision);
+    setState(() => _pendingEvents.removeWhere((e) => e['id'] == id));
   }
 
-  Future<void> _setDecision(int index, String decision) async {
-    setState(() => _decisions[index] = decision);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _adminDecisionsKey,
-      jsonEncode(_decisions.map((key, value) => MapEntry('$key', value))),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,7 +61,7 @@ class _AdminPageState extends State<AdminPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+
           Container(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
             color: AppColors.surface,
@@ -151,7 +72,7 @@ class _AdminPageState extends State<AdminPage>
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const Spacer(),
-                if (_pendingCount > 0)
+                if (_pendingEvents.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -165,7 +86,7 @@ class _AdminPageState extends State<AdminPage>
                       ),
                     ),
                     child: Text(
-                      '$_pendingCount pending',
+                      '${_pendingEvents.length} pending',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -176,7 +97,7 @@ class _AdminPageState extends State<AdminPage>
               ],
             ),
           ),
-          // Tab bar
+         
           Container(
             color: AppColors.surface,
             child: TabBar(
@@ -192,26 +113,28 @@ class _AdminPageState extends State<AdminPage>
               indicatorWeight: 3,
               dividerColor: AppColors.border,
               tabs: [
-                Tab(text: 'Pending ($_pendingCount)'),
-                Tab(text: 'Users ($_userCount)'),
+                Tab(text: 'Pending (${_pendingEvents.length})'),
+                Tab(text: 'Users (${_users.length})'),
               ],
             ),
           ),
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [_buildPendingTab(), _buildUsersTab()],
-            ),
+            child: _loading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  )
+                : TabBarView(
+                    controller: _tabController,
+                    children: [_buildPendingTab(), _buildUsersTab()],
+                  ),
           ),
         ],
       ),
     );
   }
 
-  // Pending tab
-
   Widget _buildPendingTab() {
-    if (_decisions.length == _pendingEvents.length) {
+    if (_pendingEvents.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -223,7 +146,54 @@ class _AdminPageState extends State<AdminPage>
             ),
             const SizedBox(height: 12),
             Text(
-              'All events reviewed',
+              'No pending events',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: AppColors.textMuted),
+            ),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: _load,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: _pendingEvents.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (context, i) {
+          final e = _pendingEvents[i];
+          final type = e['isPaid'] == true ? 'Paid' : 'Free';
+          return _PendingEventCard(
+            iconName: e['iconName'] as String? ?? 'school',
+            title: e['title'] as String? ?? '',
+            organizer: '${e['organizerName']} · ${e['organizerRole']}',
+            date: e['date'] as String? ?? '',
+            location: e['location'] as String? ?? '',
+            type: type,
+            onApprove: () => _decide(e['id'] as String, 'approved'),
+            onReject: () => _decide(e['id'] as String, 'rejected'),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildUsersTab() {
+    if (_users.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.people_outline,
+              size: 56,
+              color: AppColors.textMuted.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No registered users yet',
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(color: AppColors.textMuted),
@@ -234,282 +204,205 @@ class _AdminPageState extends State<AdminPage>
     }
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: _pendingEvents.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, i) {
-        final e = _pendingEvents[i];
-        final decision = _decisions[i];
-        return _PendingEventCard(
-          title: e['title']!,
-          organizer: e['organizer']!,
-          date: e['date']!,
-          location: e['location']!,
-          type: e['type']!,
-          decision: decision,
-          onApprove: decision == null
-              ? () => _setDecision(i, 'approved')
-              : null,
-          onReject: decision == null ? () => _setDecision(i, 'rejected') : null,
-        );
-      },
-    );
-  }
-
-  // Users tab
-
-  Widget _buildUsersTab() {
-    if (_loadingUsers) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.accent),
-      );
-    }
-
-    if (_registeredUsers.isNotEmpty) {
-      return RefreshIndicator(
-        onRefresh: _loadUsers,
-        child: ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: _registeredUsers.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
-          itemBuilder: (context, i) {
-            final user = _registeredUsers[i];
-            return _UserCard(
-              initials: user.avatarInitials,
-              name: user.name,
-              email: user.email,
-              campus: user.campus,
-            );
-          },
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
       itemCount: _users.length,
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, i) {
         final u = _users[i];
         return _UserCard(
-          initials: u['initials']!,
-          name: u['name']!,
-          email: u['email']!,
-          campus: u['campus']!,
+          initials: _initials(u['name'] as String? ?? ''),
+          name: u['name'] as String? ?? '',
+          email: u['email'] as String? ?? '',
+          campus: u['campus'] as String? ?? '',
         );
       },
     );
   }
+
+  String _initials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : '?';
+  }
 }
 
-// Pending Event Card
-
 class _PendingEventCard extends StatelessWidget {
+  final String iconName;
   final String title;
   final String organizer;
   final String date;
   final String location;
   final String type;
-  final String? decision;
-  final VoidCallback? onApprove;
-  final VoidCallback? onReject;
+  final VoidCallback onApprove;
+  final VoidCallback onReject;
 
   const _PendingEventCard({
+    required this.iconName,
     required this.title,
     required this.organizer,
     required this.date,
     required this.location,
     required this.type,
-    this.decision,
-    this.onApprove,
-    this.onReject,
+    required this.onApprove,
+    required this.onReject,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: decision != null ? 0.65 : 1.0,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleMedium,
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  EventIcons.get(iconName),
+                  size: 20,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 2),
+                    Text(
+                      organizer,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: 12,
+                        color: AppColors.textMuted,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'by $organizer',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppColors.accent.withValues(alpha: 0.4),
                     ),
-                  ),
-                  child: Text(
-                    type,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.accent.withValues(alpha: 0.4),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(
-                  Icons.calendar_today_outlined,
-                  size: 12,
-                  color: AppColors.textMuted,
+                child: Text(
+                  type,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  date,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Date & location
+          Row(
+            children: [
+              const Icon(
+                Icons.calendar_today_outlined,
+                size: 12,
+                color: AppColors.textMuted,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                date,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontSize: 12),
+              ),
+              const SizedBox(width: 12),
+              const Icon(
+                Icons.location_on_outlined,
+                size: 12,
+                color: AppColors.textMuted,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  location,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(
                     context,
                   ).textTheme.bodyMedium?.copyWith(fontSize: 12),
                 ),
-                const SizedBox(width: 12),
-                const Icon(
-                  Icons.location_on_outlined,
-                  size: 12,
-                  color: AppColors.textMuted,
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    location,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            const Divider(height: 1, color: AppColors.border),
-            const SizedBox(height: 10),
-            if (decision == null)
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: onReject,
-                      // icon: const Icon(Icons.close, size: 14),
-                      label: const Text('Reject'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.alert,
-                        side: BorderSide(
-                          color: AppColors.alert.withValues(alpha: 0.5),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        textStyle: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: 10),
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onReject,
+                  label: const Text('Reject'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.alert,
+                    side: BorderSide(
+                      color: AppColors.alert.withValues(alpha: 0.5),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: onApprove,
-                      // icon: const Icon(Icons.check, size: 14),
-                      label: const Text('Approve'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.success,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        textStyle: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            else
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        (decision == 'approved'
-                                ? AppColors.success
-                                : AppColors.alert)
-                            .withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color:
-                          (decision == 'approved'
-                                  ? AppColors.success
-                                  : AppColors.alert)
-                              .withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Text(
-                    decision == 'approved' ? 'Approved' : 'Rejected',
-                    style: TextStyle(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    textStyle: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: decision == 'approved'
-                          ? AppColors.success
-                          : AppColors.alert,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 ),
               ),
-          ],
-        ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: onApprove,
+                  label: const Text('Approve'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
-
-// User Card
 
 class _UserCard extends StatelessWidget {
   final String initials;

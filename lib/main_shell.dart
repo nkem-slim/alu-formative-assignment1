@@ -6,6 +6,7 @@ import 'features/events/presentation/screens/events_screen.dart';
 import 'features/my_events/presentation/screens/my_events_screen.dart';
 import 'features/profile/presentation/screens/profile_screen.dart';
 import 'features/home/presentation/screens/admin_page.dart';
+import 'features/home/presentation/screens/create_event_screen.dart';
 
 class MainShell extends StatefulWidget {
   final AuthService authService;
@@ -33,7 +34,7 @@ class _MainShellState extends State<MainShell> {
       _screens = [
         HomeScreen(authService: widget.authService),
         const EventsScreen(),
-        const MyEventsScreen(),
+        MyEventsScreen(authService: widget.authService),
         ProfileScreen(authService: widget.authService),
       ];
     }
@@ -45,6 +46,21 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _screens[_currentIndex],
+      floatingActionButton: (!isAdmin && _currentIndex == 0)
+          ? FloatingActionButton(
+              backgroundColor: AppColors.accent,
+              foregroundColor: AppColors.primary,
+              tooltip: 'Create Event',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      CreateEventScreen(authService: widget.authService),
+                ),
+              ),
+              child: const Icon(Icons.add_rounded),
+            )
+          : null,
       bottomNavigationBar: isAdmin
           ? NavigationBar(
               onDestinationSelected: (int index) {
