@@ -18,7 +18,6 @@ class _SignupScreenState extends State<SignupScreen> {
   final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
-  // final _aluEmailRegex = RegExp(r'^[\w.+-]+@alustudent\.com$');
   String _campus = 'Kigali Campus';
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
@@ -124,9 +123,9 @@ class _SignupScreenState extends State<SignupScreen> {
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) {
                         if (v == null || v.trim().isEmpty) return 'Enter your email';
-                        // if (!_aluEmailRegex.hasMatch(v.trim())) {
-                        //   return 'Must be an @alustudent.com email';
-                        // }
+                        if (!widget.authService.isValidStudentEmail(v)) {
+                          return 'Must be an @alustudent.com email';
+                        }
                         return null;
                       },
                     ),

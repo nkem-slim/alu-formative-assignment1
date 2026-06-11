@@ -18,11 +18,23 @@ class AuthService extends ChangeNotifier {
   bool _onboardingSeen = false;
   bool _initialized = false;
 
+  static final _aluEmailRegex = RegExp(r'^[\w.+-]+@alustudent\.com$');
+
   UserModel? get currentUser => _currentUser;
   bool get isLoggedIn => _currentUser != null;
   bool get isAdmin => _currentUser?.email == _adminEmail;
   bool get onboardingSeen => _onboardingSeen;
   bool get initialized => _initialized;
+
+  /// Returns true for the admin email or any @alustudent.com address.
+  bool isValidLoginEmail(String email) {
+    final e = email.trim().toLowerCase();
+    return e == _adminEmail || _aluEmailRegex.hasMatch(e);
+  }
+
+  /// Returns true only for @alustudent.com addresses (used on sign-up).
+  bool isValidStudentEmail(String email) =>
+      _aluEmailRegex.hasMatch(email.trim().toLowerCase());
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
