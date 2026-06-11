@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/data/auth_service.dart';
 import '../../data/mock_events.dart';
 import '../../data/models/event_model.dart';
 import '../widgets/event_card.dart';
 import 'event_detail_screen.dart';
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  final AuthService authService;
+  const HomeScreen({super.key, required this.authService});
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +23,10 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _HomeHeader(),
+            _HomeHeader(
+            name: authService.currentUser?.name ?? 'Student',
+            initials: authService.currentUser?.avatarInitials ?? '?',
+          ),
             const SizedBox(height: 4),
             TabBar(
               isScrollable: true,
@@ -58,7 +63,17 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _HomeHeader extends StatelessWidget {
-  const _HomeHeader();
+  final String name;
+  final String initials;
+
+  const _HomeHeader({required this.name, required this.initials});
+
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +89,7 @@ class _HomeHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Good morning',
+                    _greeting,
                     style: Theme.of(context)
                         .textTheme
                         .bodyMedium
@@ -82,7 +97,7 @@ class _HomeHeader extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Alex Johnson',
+                    name,
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ],
@@ -90,9 +105,9 @@ class _HomeHeader extends StatelessWidget {
               CircleAvatar(
                 radius: 22,
                 backgroundColor: AppColors.primary,
-                child: const Text(
-                  'AJ',
-                  style: TextStyle(
+                child: Text(
+                  initials,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
                     fontSize: 15,
