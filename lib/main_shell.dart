@@ -27,7 +27,7 @@ class _MainShellState extends State<MainShell> {
     // Regular user sees: Home | Events | My Events | Profile
     if (widget.authService.isAdmin) {
       _screens = [
-        const AdminPage(),
+        AdminPage(authService: widget.authService),
         ProfileScreen(authService: widget.authService),
       ];
     } else {

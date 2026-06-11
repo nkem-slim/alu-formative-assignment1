@@ -1,10 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/event_icons.dart';
 import '../../data/event_repository.dart';
 
 class AdminPage extends StatefulWidget {
-  const AdminPage({super.key});
+  final AuthService authService;
+
+  const AdminPage({super.key, required this.authService});
 
   @override
   State<AdminPage> createState() => _AdminPageState();
@@ -12,6 +17,7 @@ class AdminPage extends StatefulWidget {
 
 class _AdminPageState extends State<AdminPage>
     with SingleTickerProviderStateMixin {
+  static const _adminDecisionsKey = 'admin_event_decisions';
   late TabController _tabController;
 
   List<Map<String, dynamic>> _pendingEvents = [];
@@ -48,7 +54,6 @@ class _AdminPageState extends State<AdminPage>
     setState(() => _pendingEvents.removeWhere((e) => e['id'] == id));
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +61,7 @@ class _AdminPageState extends State<AdminPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ──────────────────────────────────────────────────────
+
           Container(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
             color: AppColors.surface,
@@ -92,7 +97,7 @@ class _AdminPageState extends State<AdminPage>
               ],
             ),
           ),
-          // ── Tab bar ──────────────────────────────────────────────────────
+         
           Container(
             color: AppColors.surface,
             child: TabBar(
@@ -127,8 +132,6 @@ class _AdminPageState extends State<AdminPage>
       ),
     );
   }
-
-  // ── Pending tab ───────────────────────────────────────────────────────────
 
   Widget _buildPendingTab() {
     if (_pendingEvents.isEmpty) {
@@ -177,8 +180,6 @@ class _AdminPageState extends State<AdminPage>
     );
   }
 
-  // ── Users tab ─────────────────────────────────────────────────────────────
-
   Widget _buildUsersTab() {
     if (_users.isEmpty) {
       return Center(
@@ -225,8 +226,6 @@ class _AdminPageState extends State<AdminPage>
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 }
-
-// ── Pending Event Card ────────────────────────────────────────────────────────
 
 class _PendingEventCard extends StatelessWidget {
   final String iconName;
@@ -404,8 +403,6 @@ class _PendingEventCard extends StatelessWidget {
     );
   }
 }
-
-// ── User Card ─────────────────────────────────────────────────────────────────
 
 class _UserCard extends StatelessWidget {
   final String initials;

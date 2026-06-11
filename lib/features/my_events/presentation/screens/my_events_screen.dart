@@ -1,4 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/constants/event_icons.dart';
 import '../../../../features/auth/data/auth_service.dart';
@@ -14,7 +19,16 @@ class MyEventsScreen extends StatefulWidget {
 
 class _MyEventsScreenState extends State<MyEventsScreen>
     with SingleTickerProviderStateMixin {
+  static const _pendingEventKey = 'my_events_pending_event';
+  static const _defaultPendingEvent = _SubmittedEventDraft(
+    title: 'Fintech Hackathon',
+    date: 'Jul 5 - 9:00 AM',
+    location: 'Innovation Lab',
+    footer: 'Awaiting admin review',
+  );
+
   late TabController _tabController;
+  _SubmittedEventDraft _pendingEvent = _defaultPendingEvent;
 
   List<Map<String, dynamic>> _approved = [];
   List<Map<String, dynamic>> _pending = [];
@@ -56,7 +70,7 @@ class _MyEventsScreenState extends State<MyEventsScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header ──────────────────────────────────────────────────────
+
           Container(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
             color: AppColors.surface,
@@ -65,7 +79,7 @@ class _MyEventsScreenState extends State<MyEventsScreen>
               style: Theme.of(context).textTheme.titleLarge,
             ),
           ),
-          // ── Tab bar ──────────────────────────────────────────────────────
+
           Container(
             color: AppColors.surface,
             child: TabBar(
@@ -143,7 +157,19 @@ class _MyEventsScreenState extends State<MyEventsScreen>
   }
 }
 
-// ── My Event Card ─────────────────────────────────────────────────────────────
+class _MyEventsHeader extends StatelessWidget {
+  const _MyEventsHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+      color: AppColors.surface,
+      child: Text('My Events', style: Theme.of(context).textTheme.titleLarge),
+    );
+  }
+}
 
 class _MyEventCard extends StatelessWidget {
   final Map<String, dynamic> event;
@@ -175,7 +201,7 @@ class _MyEventCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Title row ────────────────────────────────────────────────
+
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -216,7 +242,7 @@ class _MyEventCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          // ── Date & location ──────────────────────────────────────────
+
           Row(
             children: [
               const Icon(Icons.calendar_today_outlined,
@@ -247,7 +273,7 @@ class _MyEventCard extends StatelessWidget {
           const SizedBox(height: 10),
           const Divider(height: 1, color: AppColors.border),
           const SizedBox(height: 8),
-          // ── Tags row ─────────────────────────────────────────────────
+          
           Row(
             children: [
               _Tag(isPaid ? 'Paid' : 'Free',

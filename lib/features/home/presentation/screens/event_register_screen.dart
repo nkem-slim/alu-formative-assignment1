@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/data/models/user_model.dart';
 import '../../data/models/event_model.dart';
 
 class EventRegisterScreen extends StatefulWidget {
   final Event event;
-  const EventRegisterScreen({super.key, required this.event});
+  final UserModel? currentUser;
+
+  const EventRegisterScreen({super.key, required this.event, this.currentUser});
 
   @override
   State<EventRegisterScreen> createState() => _EventRegisterScreenState();
@@ -13,10 +16,19 @@ class EventRegisterScreen extends StatefulWidget {
 
 class _EventRegisterScreenState extends State<EventRegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController(text: 'Alex Johnson');
-  final _emailController = TextEditingController(text: 'alex.johnson@alueducation.com');
-  final _phoneController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = widget.currentUser;
+    _nameController = TextEditingController(text: user?.name ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
+    _phoneController = TextEditingController(text: user?.phone ?? '');
+  }
 
   @override
   void dispose() {
@@ -45,8 +57,7 @@ class _EventRegisterScreenState extends State<EventRegisterScreen> {
     );
 
     if (mounted) {
-      // Pop both dialog and register screen
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
     }
   }
 
@@ -78,7 +89,9 @@ class _EventRegisterScreenState extends State<EventRegisterScreen> {
               decoration: BoxDecoration(
                 color: event.headerColor.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: event.headerColor.withValues(alpha: 0.25)),
+                border: Border.all(
+                  color: event.headerColor.withValues(alpha: 0.25),
+                ),
               ),
               child: Row(
                 children: [
@@ -116,15 +129,24 @@ class _EventRegisterScreenState extends State<EventRegisterScreen> {
             const SizedBox(height: 8),
             if (event.isPaid)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.alert.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.alert.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppColors.alert.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline, size: 16, color: AppColors.alert),
+                    const Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: AppColors.alert,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'This is a paid event - RWF ${event.price?.toInt()}',
@@ -140,7 +162,10 @@ class _EventRegisterScreenState extends State<EventRegisterScreen> {
             const SizedBox(height: 28),
 
             // Form
-            Text('Your Details', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Your Details',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
             Text(
               'Please confirm your information below.',
@@ -158,8 +183,9 @@ class _EventRegisterScreenState extends State<EventRegisterScreen> {
                       labelText: 'Full Name',
                       prefixIcon: Icon(Icons.person_outline),
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Please enter your name' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Please enter your name'
+                        : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -170,7 +196,9 @@ class _EventRegisterScreenState extends State<EventRegisterScreen> {
                       prefixIcon: Icon(Icons.mail_outline),
                     ),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Please enter your email';
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Please enter your email';
+                      }
                       if (!v.contains('@')) return 'Enter a valid email';
                       return null;
                     },
@@ -206,7 +234,10 @@ class _EventRegisterScreenState extends State<EventRegisterScreen> {
                           )
                         : const Text(
                             'Confirm Registration',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                   ),
                 ],
@@ -238,7 +269,11 @@ class _SuccessDialog extends StatelessWidget {
               color: AppColors.success.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_circle, color: AppColors.success, size: 40),
+            child: const Icon(
+              Icons.check_circle,
+              color: AppColors.success,
+              size: 40,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -259,7 +294,9 @@ class _SuccessDialog extends StatelessWidget {
               minimumSize: const Size.fromHeight(44),
               backgroundColor: AppColors.accent,
               foregroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: const Text('Done'),
           ),
