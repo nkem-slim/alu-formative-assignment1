@@ -22,13 +22,21 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    _screens = [
-      HomeScreen(authService: widget.authService),
-      const EventsScreen(),
-      const MyEventsScreen(),
-      if (widget.authService.isAdmin) const AdminPage(),
-      ProfileScreen(authService: widget.authService),
-    ];
+    // Admin sees only: Admin | Profile
+    // Regular user sees: Home | Events | My Events | Profile
+    if (widget.authService.isAdmin) {
+      _screens = [
+        const AdminPage(),
+        ProfileScreen(authService: widget.authService),
+      ];
+    } else {
+      _screens = [
+        HomeScreen(authService: widget.authService),
+        const EventsScreen(),
+        const MyEventsScreen(),
+        ProfileScreen(authService: widget.authService),
+      ];
+    }
   }
 
   @override
@@ -37,47 +45,67 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: _screens[_currentIndex],
-      bottomNavigationBar: NavigationBar(
-        onDestinationSelected: (int index) {
-          setState(() => _currentIndex = index);
-        },
-        indicatorColor: AppColors.accent,
-        selectedIndex: _currentIndex,
-        backgroundColor: AppColors.surface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 8,
-        destinations: [
-          const NavigationDestination(
-            selectedIcon: Icon(Icons.home, color: AppColors.primary),
-            icon: Icon(Icons.home_outlined),
-            label: 'Home',
-          ),
-          const NavigationDestination(
-            selectedIcon: Icon(Icons.calendar_month, color: AppColors.primary),
-            icon: Icon(Icons.calendar_month_outlined),
-            label: 'Events',
-          ),
-          const NavigationDestination(
-            selectedIcon: Icon(Icons.bookmark, color: AppColors.primary),
-            icon: Icon(Icons.bookmark_outline),
-            label: 'My Events',
-          ),
-          if (isAdmin)
-            const NavigationDestination(
-              selectedIcon: Icon(
-                Icons.admin_panel_settings,
-                color: AppColors.primary,
-              ),
-              icon: Icon(Icons.admin_panel_settings_outlined),
-              label: 'Admin',
+      bottomNavigationBar: isAdmin
+          ? NavigationBar(
+              onDestinationSelected: (int index) {
+                setState(() => _currentIndex = index);
+              },
+              indicatorColor: AppColors.accent,
+              selectedIndex: _currentIndex,
+              backgroundColor: AppColors.surface,
+              surfaceTintColor: Colors.transparent,
+              elevation: 8,
+              destinations: const [
+                NavigationDestination(
+                  selectedIcon: Icon(
+                    Icons.admin_panel_settings,
+                    color: AppColors.primary,
+                  ),
+                  icon: Icon(Icons.admin_panel_settings_outlined),
+                  label: 'Admin',
+                ),
+                NavigationDestination(
+                  selectedIcon: Icon(Icons.person, color: AppColors.primary),
+                  icon: Icon(Icons.person_outline),
+                  label: 'Profile',
+                ),
+              ],
+            )
+          : NavigationBar(
+              onDestinationSelected: (int index) {
+                setState(() => _currentIndex = index);
+              },
+              indicatorColor: AppColors.accent,
+              selectedIndex: _currentIndex,
+              backgroundColor: AppColors.surface,
+              surfaceTintColor: Colors.transparent,
+              elevation: 8,
+              destinations: const [
+                NavigationDestination(
+                  selectedIcon: Icon(Icons.home, color: AppColors.primary),
+                  icon: Icon(Icons.home_outlined),
+                  label: 'Home',
+                ),
+                NavigationDestination(
+                  selectedIcon: Icon(
+                    Icons.calendar_month,
+                    color: AppColors.primary,
+                  ),
+                  icon: Icon(Icons.calendar_month_outlined),
+                  label: 'Events',
+                ),
+                NavigationDestination(
+                  selectedIcon: Icon(Icons.bookmark, color: AppColors.primary),
+                  icon: Icon(Icons.bookmark_outline),
+                  label: 'My Events',
+                ),
+                NavigationDestination(
+                  selectedIcon: Icon(Icons.person, color: AppColors.primary),
+                  icon: Icon(Icons.person_outline),
+                  label: 'Profile',
+                ),
+              ],
             ),
-          const NavigationDestination(
-            selectedIcon: Icon(Icons.person, color: AppColors.primary),
-            icon: Icon(Icons.person_outline),
-            label: 'Profile',
-          ),
-        ],
-      ),
     );
   }
 }
