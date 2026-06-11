@@ -1,8 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/data/auth_service.dart';
+import '../../../auth/data/models/user_model.dart';
 
 class AdminPage extends StatefulWidget {
-  const AdminPage({super.key});
+  final AuthService authService;
+
+  const AdminPage({super.key, required this.authService});
 
   @override
   State<AdminPage> createState() => _AdminPageState();
@@ -10,8 +17,11 @@ class AdminPage extends StatefulWidget {
 
 class _AdminPageState extends State<AdminPage>
     with SingleTickerProviderStateMixin {
+  static const _adminDecisionsKey = 'admin_event_decisions';
   late TabController _tabController;
   final Map<int, String> _decisions = {};
+  List<UserModel> _registeredUsers = [];
+  bool _loadingUsers = true;
 
   static const _pendingEvents = [
     {
@@ -71,17 +81,57 @@ class _AdminPageState extends State<AdminPage>
   ];
 
   int get _pendingCount => _pendingEvents.length - _decisions.length;
+  int get _userCount =>
+      _registeredUsers.isEmpty ? _users.length : _registeredUsers.length;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadUsers();
+    _loadDecisions();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadUsers() async {
+    final users = await widget.authService.registeredUsers();
+    if (!mounted) return;
+    setState(() {
+      _registeredUsers = users;
+      _loadingUsers = false;
+    });
+  }
+
+  Future<void> _loadDecisions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = prefs.getString(_adminDecisionsKey);
+    if (encoded == null) return;
+
+    final decoded = jsonDecode(encoded) as Map<String, dynamic>;
+    if (!mounted) return;
+    setState(() {
+      _decisions
+        ..clear()
+        ..addAll(
+          decoded.map(
+            (key, value) => MapEntry(int.parse(key), value as String),
+          ),
+        );
+    });
+  }
+
+  Future<void> _setDecision(int index, String decision) async {
+    setState(() => _decisions[index] = decision);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _adminDecisionsKey,
+      jsonEncode(_decisions.map((key, value) => MapEntry('$key', value))),
+    );
   }
 
   @override
@@ -143,7 +193,7 @@ class _AdminPageState extends State<AdminPage>
               dividerColor: AppColors.border,
               tabs: [
                 Tab(text: 'Pending ($_pendingCount)'),
-                Tab(text: 'Users (${_users.length})'),
+                Tab(text: 'Users ($_userCount)'),
               ],
             ),
           ),
@@ -197,11 +247,9 @@ class _AdminPageState extends State<AdminPage>
           type: e['type']!,
           decision: decision,
           onApprove: decision == null
-              ? () => setState(() => _decisions[i] = 'approved')
+              ? () => _setDecision(i, 'approved')
               : null,
-          onReject: decision == null
-              ? () => setState(() => _decisions[i] = 'rejected')
-              : null,
+          onReject: decision == null ? () => _setDecision(i, 'rejected') : null,
         );
       },
     );
@@ -210,6 +258,32 @@ class _AdminPageState extends State<AdminPage>
   // Users tab
 
   Widget _buildUsersTab() {
+    if (_loadingUsers) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.accent),
+      );
+    }
+
+    if (_registeredUsers.isNotEmpty) {
+      return RefreshIndicator(
+        onRefresh: _loadUsers,
+        child: ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: _registeredUsers.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          itemBuilder: (context, i) {
+            final user = _registeredUsers[i];
+            return _UserCard(
+              initials: user.avatarInitials,
+              name: user.name,
+              email: user.email,
+              campus: user.campus,
+            );
+          },
+        ),
+      );
+    }
+
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: _users.length,

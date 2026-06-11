@@ -24,9 +24,9 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _HomeHeader(
-            name: authService.currentUser?.name ?? 'Student',
-            initials: authService.currentUser?.avatarInitials ?? '?',
-          ),
+              name: authService.currentUser?.name ?? 'Student',
+              initials: authService.currentUser?.avatarInitials ?? '?',
+            ),
             const SizedBox(height: 4),
             TabBar(
               isScrollable: true,
@@ -36,8 +36,14 @@ class HomeScreen extends StatelessWidget {
               indicatorColor: AppColors.accent,
               indicatorWeight: 3,
               dividerColor: AppColors.border,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+              unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+              ),
               tabs: const [
                 Tab(text: 'Paid'),
                 Tab(text: 'Free'),
@@ -48,10 +54,10 @@ class HomeScreen extends StatelessWidget {
             Expanded(
               child: TabBarView(
                 children: [
-                  _EventList(events: paid),
-                  _EventList(events: free),
-                  _EventList(events: onCampus),
-                  _EventList(events: withFood),
+                  _EventList(events: paid, authService: authService),
+                  _EventList(events: free, authService: authService),
+                  _EventList(events: onCampus, authService: authService),
+                  _EventList(events: withFood, authService: authService),
                 ],
               ),
             ),
@@ -90,16 +96,12 @@ class _HomeHeader extends StatelessWidget {
                 children: [
                   Text(
                     _greeting,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: AppColors.textMuted),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textMuted,
+                    ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    name,
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
+                  Text(name, style: Theme.of(context).textTheme.titleLarge),
                 ],
               ),
               CircleAvatar(
@@ -134,7 +136,9 @@ class _HomeHeader extends StatelessWidget {
 
 class _EventList extends StatelessWidget {
   final List<Event> events;
-  const _EventList({required this.events});
+  final AuthService authService;
+
+  const _EventList({required this.events, required this.authService});
 
   @override
   Widget build(BuildContext context) {
@@ -147,10 +151,9 @@ class _EventList extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'No events in this category',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.textMuted),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
             ),
           ],
         ),
@@ -168,7 +171,10 @@ class _EventList extends StatelessWidget {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => EventDetailScreen(event: event),
+              builder: (_) => EventDetailScreen(
+                event: event,
+                currentUser: authService.currentUser,
+              ),
             ),
           ),
         );
