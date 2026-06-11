@@ -88,17 +88,6 @@ class AuthService extends ChangeNotifier {
 
     users.add(newUser);
     await prefs.setString(_keyUsers, jsonEncode(users));
-
-    _currentUser = UserModel(
-      id: newUser['id']!,
-      name: newUser['name']!,
-      email: newUser['email']!,
-      phone: newUser['phone']!,
-      campus: newUser['campus']!,
-      avatarInitials: _initials(newUser['name']!),
-    );
-    await prefs.setString(_keyCurrentUser, jsonEncode(_currentUser!.toJson()));
-    notifyListeners();
     return null;
   }
 
