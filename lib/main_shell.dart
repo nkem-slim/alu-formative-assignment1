@@ -22,7 +22,7 @@ class _MainShellState extends State<MainShell> {
   void initState() {
     super.initState();
     _screens = [
-      const HomeScreen(),
+      HomeScreen(authService: widget.authService),
       const EventsScreen(),
       const MyEventsScreen(),
       ProfileScreen(authService: widget.authService),
