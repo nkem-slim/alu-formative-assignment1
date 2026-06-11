@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/auth_service.dart';
 import '../widgets/auth_widgets.dart';
@@ -89,12 +90,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: AppColors.textMuted,
                           size: 20,
                         ),
-                        onPressed: () =>
-                            setState(() => _obscurePassword = !_obscurePassword),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Enter your password';
-                        if (v.length < 6) return 'Password must be at least 6 characters';
+                        if (v == null || v.isEmpty) {
+                          return 'Enter your password';
+                        }
+                        if (v.length < 6) {
+                          return 'Password must be at least 6 characters';
+                        }
                         return null;
                       },
                     ),
@@ -102,7 +108,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 12),
                       Text(
                         _error!,
-                        style: const TextStyle(color: AppColors.alert, fontSize: 13),
+                        style: const TextStyle(
+                          color: AppColors.alert,
+                          fontSize: 13,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -152,18 +161,15 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildLogo() {
     return Column(
       children: [
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            color: AppColors.accent,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: const Icon(Icons.school, color: AppColors.primary, size: 40),
+        Image.asset(
+          'assets/images/logo.png',
+          width: 86,
+          height: 86,
+          fit: BoxFit.contain,
         ),
         const SizedBox(height: 18),
         const Text(
-          'ALU Link',
+          AppConstants.appName,
           style: TextStyle(
             color: Colors.white,
             fontSize: 30,

@@ -1,29 +1,42 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../auth/data/models/user_model.dart';
 import '../../data/models/event_model.dart';
 import 'event_register_screen.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final Event event;
-  const EventDetailScreen({super.key, required this.event});
+  final UserModel? currentUser;
+
+  const EventDetailScreen({super.key, required this.event, this.currentUser});
 
   @override
   State<EventDetailScreen> createState() => _EventDetailScreenState();
 }
 
 class _EventDetailScreenState extends State<EventDetailScreen> {
+  static const _likedEventsKey = 'liked_event_ids';
+  static const _dislikedEventsKey = 'disliked_event_ids';
+  static const _registeredEventsKey = 'registered_event_ids';
+
   late int _likes;
   late int _dislikes;
   bool _likedByUser = false;
   bool _dislikedByUser = false;
+  bool _registered = false;
 
   @override
   void initState() {
     super.initState();
     _likes = widget.event.likes;
     _dislikes = widget.event.dislikes;
+    _loadInteractionState();
   }
 
   void _onLike() {
@@ -40,6 +53,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         }
       }
     });
+    unawaited(_saveReactionState());
   }
 
   void _onDislike() {
@@ -56,21 +70,93 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         }
       }
     });
+    unawaited(_saveReactionState());
+  }
+
+  Future<void> _loadInteractionState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final likedEvents = prefs.getStringList(_likedEventsKey) ?? const [];
+    final dislikedEvents = prefs.getStringList(_dislikedEventsKey) ?? const [];
+    final registeredEvents =
+        prefs.getStringList(_registeredEventsKey) ?? const [];
+
+    final liked = likedEvents.contains(widget.event.id);
+    final disliked = !liked && dislikedEvents.contains(widget.event.id);
+
+    if (!mounted) return;
+    setState(() {
+      _likedByUser = liked;
+      _dislikedByUser = disliked;
+      _registered = registeredEvents.contains(widget.event.id);
+      _likes = widget.event.likes + (liked ? 1 : 0);
+      _dislikes = widget.event.dislikes + (disliked ? 1 : 0);
+    });
+  }
+
+  Future<void> _saveReactionState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final likedEvents = (prefs.getStringList(_likedEventsKey) ?? const [])
+        .toSet();
+    final dislikedEvents = (prefs.getStringList(_dislikedEventsKey) ?? const [])
+        .toSet();
+
+    if (_likedByUser) {
+      likedEvents.add(widget.event.id);
+    } else {
+      likedEvents.remove(widget.event.id);
+    }
+
+    if (_dislikedByUser) {
+      dislikedEvents.add(widget.event.id);
+    } else {
+      dislikedEvents.remove(widget.event.id);
+    }
+
+    await prefs.setStringList(_likedEventsKey, likedEvents.toList());
+    await prefs.setStringList(_dislikedEventsKey, dislikedEvents.toList());
+  }
+
+  Future<void> _openRegistration() async {
+    final registered = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EventRegisterScreen(
+          event: widget.event,
+          currentUser: widget.currentUser,
+        ),
+      ),
+    );
+
+    if (!mounted || registered != true) return;
+    setState(() => _registered = true);
+    await _saveRegistrationState();
+  }
+
+  Future<void> _saveRegistrationState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final registeredEvents =
+        (prefs.getStringList(_registeredEventsKey) ?? const []).toSet();
+    registeredEvents.add(widget.event.id);
+    await prefs.setStringList(_registeredEventsKey, registeredEvents.toList());
   }
 
   Future<void> _shareToWhatsApp() async {
     final event = widget.event;
     final dateStr = DateFormat('EEE, MMM d yyyy · h:mm a').format(event.date);
     final message =
-        '🎉 *${event.title}*\n $dateStr\n ${event.location}\nOrganized by: ${event.organizer}\n\nCheck it out on ALU Link!';
-    final uri = Uri.parse('whatsapp://send?text=${Uri.encodeComponent(message)}');
+        '🎉 *${event.title}*\n $dateStr\n ${event.location}\nOrganized by: ${event.organizer}\n\nCheck it out on ${AppConstants.appName}!';
+    final uri = Uri.parse(
+      'whatsapp://send?text=${Uri.encodeComponent(message)}',
+    );
 
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('WhatsApp is not installed on this device.')),
+          const SnackBar(
+            content: Text('WhatsApp is not installed on this device.'),
+          ),
         );
       }
     }
@@ -80,7 +166,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final uri = Uri(
       scheme: 'mailto',
       path: widget.event.organizerEmail,
-      query: 'subject=Question about ${Uri.encodeComponent(widget.event.title)}',
+      query:
+          'subject=Question about ${Uri.encodeComponent(widget.event.title)}',
     );
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
@@ -110,58 +197,76 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     runSpacing: 8,
                     children: [
                       _Chip(
-                        label: event.isPaid ? 'Paid - RWF ${event.price?.toInt()}' : 'Free',
-                        color: event.isPaid ? AppColors.alert : AppColors.success,
+                        label: event.isPaid
+                            ? 'Paid - RWF ${event.price?.toInt()}'
+                            : 'Free',
+                        color: event.isPaid
+                            ? AppColors.alert
+                            : AppColors.success,
                       ),
                       if (event.isOnCampus)
-                        const _Chip(label: 'On Campus', color: AppColors.secondaryBlue),
+                        const _Chip(
+                          label: 'On Campus',
+                          color: AppColors.secondaryBlue,
+                        ),
                       if (event.hasFood)
-                        const _Chip(label: 'Food Provided', color: Color(0xFF7C5C00)),
+                        const _Chip(
+                          label: 'Food Provided',
+                          color: Color(0xFF7C5C00),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 20),
 
                   // Event title
-                  Text(event.title, style: Theme.of(context).textTheme.displayMedium),
+                  Text(
+                    event.title,
+                    style: Theme.of(context).textTheme.displayMedium,
+                  ),
                   const SizedBox(height: 20),
 
                   // Info cards
-                  _InfoCard(children: [
-                    _DetailRow(
-                      icon: Icons.person_outline,
-                      label: 'Organizer',
-                      value: event.organizer,
-                    ),
-                    const Divider(height: 20),
-                    _DetailRow(
-                      icon: Icons.calendar_today_outlined,
-                      label: 'Date',
-                      value: dateStr,
-                    ),
-                    const Divider(height: 20),
-                    _DetailRow(
-                      icon: Icons.access_time_outlined,
-                      label: 'Time',
-                      value: timeStr,
-                    ),
-                    const Divider(height: 20),
-                    _DetailRow(
-                      icon: Icons.location_on_outlined,
-                      label: 'Location',
-                      value: event.location,
-                    ),
-                  ]),
+                  _InfoCard(
+                    children: [
+                      _DetailRow(
+                        icon: Icons.person_outline,
+                        label: 'Organizer',
+                        value: event.organizer,
+                      ),
+                      const Divider(height: 20),
+                      _DetailRow(
+                        icon: Icons.calendar_today_outlined,
+                        label: 'Date',
+                        value: dateStr,
+                      ),
+                      const Divider(height: 20),
+                      _DetailRow(
+                        icon: Icons.access_time_outlined,
+                        label: 'Time',
+                        value: timeStr,
+                      ),
+                      const Divider(height: 20),
+                      _DetailRow(
+                        icon: Icons.location_on_outlined,
+                        label: 'Location',
+                        value: event.location,
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 16),
 
                   // Description
-                  Text('About this Event', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'About this Event',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     event.description,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodyLarge
-                        ?.copyWith(height: 1.6, color: AppColors.textMuted),
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      height: 1.6,
+                      color: AppColors.textMuted,
+                    ),
                   ),
                   const SizedBox(height: 24),
 
@@ -211,14 +316,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
                   // Register button
                   ElevatedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EventRegisterScreen(event: event),
-                      ),
+                    onPressed: _registered ? null : _openRegistration,
+                    icon: Icon(
+                      _registered
+                          ? Icons.check_circle_outline
+                          : Icons.how_to_reg_outlined,
                     ),
-                    icon: const Icon(Icons.how_to_reg_outlined),
-                    label: const Text('Register for This Event'),
+                    label: Text(
+                      _registered ? 'Registered' : 'Register for This Event',
+                    ),
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size.fromHeight(52),
                       backgroundColor: AppColors.accent,
@@ -292,7 +398,11 @@ class _Chip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: color,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -311,9 +421,7 @@ class _InfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        children: children,
-      ),
+      child: Column(children: children),
     );
   }
 }
@@ -322,7 +430,11 @@ class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _DetailRow({required this.icon, required this.label, required this.value});
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -334,12 +446,19 @@ class _DetailRow extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label,
-                style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+            ),
             const SizedBox(height: 2),
-            Text(value,
-                style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w500, color: AppColors.textDark)),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textDark,
+              ),
+            ),
           ],
         ),
       ],
@@ -396,11 +515,18 @@ class _ReactionRow extends StatelessWidget {
           Container(width: 1, height: 28, color: AppColors.border),
           Row(
             children: [
-              const Icon(Icons.chat_bubble_outline, size: 20, color: AppColors.textMuted),
+              const Icon(
+                Icons.chat_bubble_outline,
+                size: 20,
+                color: AppColors.textMuted,
+              ),
               const SizedBox(width: 6),
               Text(
                 '$comments comments',
-                style: const TextStyle(fontSize: 14, color: AppColors.textMuted),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textMuted,
+                ),
               ),
             ],
           ),
@@ -436,7 +562,11 @@ class _ReactionButton extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             count.toString(),
-            style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 14,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),

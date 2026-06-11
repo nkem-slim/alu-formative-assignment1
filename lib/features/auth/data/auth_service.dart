@@ -8,6 +8,24 @@ class AuthService extends ChangeNotifier {
   static const _keyCurrentUser = 'current_user';
   static const _keyUsers = 'registered_users';
   static const _keyOnboarding = 'onboarding_seen';
+  static const _seedUsers = [
+    {
+      'id': 'seed_user_1',
+      'name': 'Amara Kone',
+      'email': 'a.kone@alustudent.com',
+      'phone': '+250 788 100 201',
+      'password': 'student123',
+      'campus': 'Kigali Campus',
+    },
+    {
+      'id': 'seed_user_2',
+      'name': 'Beatrice Mutesi',
+      'email': 'b.mutesi@alustudent.com',
+      'phone': '+250 788 100 202',
+      'password': 'student123',
+      'campus': 'Mauritius Campus',
+    },
+  ];
 
   static String get _adminEmail =>
       dotenv.env['ADMIN_EMAIL'] ?? 'admin@gmail.com';
@@ -38,6 +56,7 @@ class AuthService extends ChangeNotifier {
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
+    await _seedUsersIfNeeded(prefs);
     _onboardingSeen = prefs.getBool(_keyOnboarding) ?? false;
     final userJson = prefs.getString(_keyCurrentUser);
     if (userJson != null) {
@@ -70,18 +89,22 @@ class AuthService extends ChangeNotifier {
       );
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
-          _keyCurrentUser, jsonEncode(_currentUser!.toJson()));
+        _keyCurrentUser,
+        jsonEncode(_currentUser!.toJson()),
+      );
       notifyListeners();
       return null;
     }
 
     final prefs = await SharedPreferences.getInstance();
+    await _seedUsersIfNeeded(prefs);
     final users = _loadUsers(prefs);
+    final normalizedEmail = email.trim().toLowerCase();
 
     final match = users.where(
       (u) =>
-          u['email'] == email.trim().toLowerCase() &&
-          u['password'] == password,
+          u['email']?.toString().toLowerCase() == normalizedEmail &&
+          u['password']?.toString() == password,
     );
 
     if (match.isEmpty) return 'Invalid email or password.';
@@ -109,6 +132,7 @@ class AuthService extends ChangeNotifier {
   }) async {
     await Future.delayed(const Duration(milliseconds: 600));
     final prefs = await SharedPreferences.getInstance();
+    await _seedUsersIfNeeded(prefs);
     final users = _loadUsers(prefs);
 
     if (users.any((u) => u['email'] == email.trim().toLowerCase())) {
@@ -129,6 +153,122 @@ class AuthService extends ChangeNotifier {
     return null;
   }
 
+  Future<List<UserModel>> registeredUsers() async {
+    final prefs = await SharedPreferences.getInstance();
+    await _seedUsersIfNeeded(prefs);
+    return _loadUsers(prefs)
+        .map(
+          (u) => UserModel(
+            id: u['id'],
+            name: u['name'],
+            email: u['email'],
+            phone: u['phone'] ?? '',
+            campus: u['campus'],
+            avatarInitials: _initials(u['name']),
+          ),
+        )
+        .toList();
+  }
+
+  Future<String?> updateProfile({
+    required String name,
+    required String email,
+    required String phone,
+    required String campus,
+  }) async {
+    if (_currentUser == null) return 'You need to sign in again.';
+
+    final normalizedEmail = email.trim().toLowerCase();
+    final cleanName = name.trim();
+    final cleanPhone = phone.trim();
+
+    if (cleanName.isEmpty) return 'Enter your full name.';
+    if (normalizedEmail.isEmpty || !normalizedEmail.contains('@')) {
+      return 'Enter a valid email address.';
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await _seedUsersIfNeeded(prefs);
+
+    if (isAdmin) {
+      _currentUser = UserModel(
+        id: _currentUser!.id,
+        name: cleanName,
+        email: _currentUser!.email,
+        phone: cleanPhone,
+        campus: campus,
+        avatarInitials: _initials(cleanName),
+      );
+      await prefs.setString(
+        _keyCurrentUser,
+        jsonEncode(_currentUser!.toJson()),
+      );
+      notifyListeners();
+      return null;
+    }
+
+    final users = _loadUsers(prefs);
+    final duplicate = users.any(
+      (u) => u['id'] != _currentUser!.id && u['email'] == normalizedEmail,
+    );
+    if (duplicate) return 'An account with this email already exists.';
+
+    final index = users.indexWhere((u) => u['id'] == _currentUser!.id);
+    if (index == -1) return 'Could not find your account.';
+
+    users[index] = {
+      ...users[index],
+      'name': cleanName,
+      'email': normalizedEmail,
+      'phone': cleanPhone,
+      'campus': campus,
+    };
+
+    _currentUser = UserModel(
+      id: _currentUser!.id,
+      name: cleanName,
+      email: normalizedEmail,
+      phone: cleanPhone,
+      campus: campus,
+      avatarInitials: _initials(cleanName),
+    );
+
+    await prefs.setString(_keyUsers, jsonEncode(users));
+    await prefs.setString(_keyCurrentUser, jsonEncode(_currentUser!.toJson()));
+    notifyListeners();
+    return null;
+  }
+
+  Future<String?> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (_currentUser == null) return 'You need to sign in again.';
+    if (newPassword.length < 6) {
+      return 'New password must be at least 6 characters.';
+    }
+
+    if (isAdmin) {
+      if (currentPassword != _adminPassword) {
+        return 'Current password is incorrect.';
+      }
+      return 'Admin password is configured in .env for this demo.';
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await _seedUsersIfNeeded(prefs);
+    final users = _loadUsers(prefs);
+    final index = users.indexWhere((u) => u['id'] == _currentUser!.id);
+    if (index == -1) return 'Could not find your account.';
+    if (users[index]['password'] != currentPassword) {
+      return 'Current password is incorrect.';
+    }
+
+    users[index] = {...users[index], 'password': newPassword};
+    await prefs.setString(_keyUsers, jsonEncode(users));
+    return null;
+  }
+
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyCurrentUser);
@@ -139,7 +279,44 @@ class AuthService extends ChangeNotifier {
   List<Map<String, dynamic>> _loadUsers(SharedPreferences prefs) {
     final json = prefs.getString(_keyUsers);
     if (json == null) return [];
-    return (jsonDecode(json) as List).cast<Map<String, dynamic>>();
+    return (jsonDecode(json) as List)
+        .map((user) => Map<String, dynamic>.from(user as Map))
+        .toList();
+  }
+
+  Future<void> _seedUsersIfNeeded(SharedPreferences prefs) async {
+    final encodedUsers = prefs.getString(_keyUsers);
+    var users = <Map<String, dynamic>>[];
+    var shouldSave = encodedUsers == null;
+
+    if (encodedUsers != null) {
+      try {
+        users = (jsonDecode(encodedUsers) as List)
+            .map((user) => Map<String, dynamic>.from(user as Map))
+            .toList();
+      } catch (_) {
+        shouldSave = true;
+      }
+    }
+
+    for (final seedUser in _seedUsers) {
+      final seedId = seedUser['id'];
+      final seedEmail = seedUser['email']?.toString().toLowerCase();
+      final exists = users.any(
+        (user) =>
+            user['id'] == seedId ||
+            user['email']?.toString().toLowerCase() == seedEmail,
+      );
+
+      if (!exists) {
+        users.add(Map<String, dynamic>.from(seedUser));
+        shouldSave = true;
+      }
+    }
+
+    if (shouldSave) {
+      await prefs.setString(_keyUsers, jsonEncode(users));
+    }
   }
 
   String _initials(String name) {

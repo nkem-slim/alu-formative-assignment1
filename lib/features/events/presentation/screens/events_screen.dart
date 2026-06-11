@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -14,6 +15,7 @@ class EventsScreen extends StatefulWidget {
 }
 
 class _EventsScreenState extends State<EventsScreen> {
+  static const _attendedEventsKey = 'attended_event_ids';
   final Set<String> _attendedEventIds = {};
   final Set<String> _finishedEventIds = {'4', '7', '8'};
 
@@ -24,6 +26,27 @@ class _EventsScreenState extends State<EventsScreen> {
   List<Event> get _finishedEvents => mockEvents
       .where((event) => _finishedEventIds.contains(event.id))
       .toList();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAttendedEvents();
+  }
+
+  Future<void> _loadAttendedEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _attendedEventIds
+        ..clear()
+        ..addAll(prefs.getStringList(_attendedEventsKey) ?? const []);
+    });
+  }
+
+  Future<void> _saveAttendedEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_attendedEventsKey, _attendedEventIds.toList());
+  }
 
   void _openDetails(Event event, EventRunState state) {
     Navigator.push(
@@ -41,6 +64,7 @@ class _EventsScreenState extends State<EventsScreen> {
                 _attendedEventIds.remove(event.id);
               }
             });
+            _saveAttendedEvents();
           },
         ),
       ),
