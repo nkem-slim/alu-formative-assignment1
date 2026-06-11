@@ -17,9 +17,11 @@ class _SignupScreenState extends State<SignupScreen> {
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
   final _aluEmailRegex = RegExp(r'^[\w.+-]+@alustudent\.com$');
   String _campus = 'Kigali Campus';
   bool _obscurePassword = true;
+  bool _obscureConfirm = true;
   bool _loading = false;
   String? _error;
 
@@ -31,6 +33,7 @@ class _SignupScreenState extends State<SignupScreen> {
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _passwordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
     super.dispose();
   }
 
@@ -48,10 +51,20 @@ class _SignupScreenState extends State<SignupScreen> {
       campus: _campus,
     );
     if (!mounted) return;
-    setState(() {
-      _loading = false;
-      _error = err;
-    });
+    if (err != null) {
+      setState(() {
+        _loading = false;
+        _error = err;
+      });
+      return;
+    }
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Account created! Please sign in.'),
+        backgroundColor: AppColors.success,
+      ),
+    );
   }
 
   @override
@@ -150,6 +163,29 @@ class _SignupScreenState extends State<SignupScreen> {
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Enter a password';
                         if (v.length < 6) return 'Password must be at least 6 characters';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    AuthField(
+                      controller: _confirmPasswordCtrl,
+                      label: 'Confirm Password',
+                      hint: 'Re-enter your password',
+                      obscureText: _obscureConfirm,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirm
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: AppColors.textMuted,
+                          size: 20,
+                        ),
+                        onPressed: () =>
+                            setState(() => _obscureConfirm = !_obscureConfirm),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Please confirm your password';
+                        if (v != _passwordCtrl.text) return 'Passwords do not match';
                         return null;
                       },
                     ),
