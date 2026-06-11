@@ -17,7 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  // final _aluEmailRegex = RegExp(r'^[\w.+-]+@alustudent\.com$');
   bool _obscurePassword = true;
   bool _loading = false;
   String? _error;
@@ -70,12 +69,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       hint: 'yourname@alustudent.com',
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) {
-                          return 'Enter your email';
+                        if (v == null || v.trim().isEmpty) return 'Enter your email';
+                        if (!widget.authService.isValidLoginEmail(v)) {
+                          return 'Use your ALU student or admin email';
                         }
-                        // if (!_aluEmailRegex.hasMatch(v.trim())) {
-                        //   return 'Must be an @alustudent.com email';
-                        // }
                         return null;
                       },
                     ),
